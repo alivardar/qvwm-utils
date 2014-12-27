@@ -16,7 +16,7 @@ GETTEXT_PACKAGE = qvwm-background
 PACKAGE = qvwm-background
 VERSION = 0.1
 
-SHELL = /bin/sh
+SHELL = /bin/bash
 
 
 srcdir = .
@@ -25,21 +25,23 @@ top_srcdir = ..
 
 prefix = /usr/local
 exec_prefix = ${prefix}
-datadir = ${prefix}/share
+datarootdir = ${prefix}/share
+datadir = ${datarootdir}
 libdir = ${exec_prefix}/lib
 localedir = $(libdir)/locale
 gnulocaledir = $(datadir)/locale
 gettextsrcdir = $(datadir)/glib-2.0/gettext/po
 subdir = po
 
-INSTALL = /usr/bin/ginstall -c
+INSTALL = /usr/bin/install -c
 INSTALL_DATA = ${INSTALL} -m 644
-MKINSTALLDIRS = $(top_srcdir)/./mkinstalldirs
+MKINSTALLDIRS = mkdir -p
 
 CC = gcc
 GENCAT = @GENCAT@
 GMSGFMT = /usr/bin/msgfmt
 MSGFMT = /usr/bin/msgfmt
+MSGFMT_OPTS = -c
 XGETTEXT = /usr/bin/xgettext
 MSGMERGE = msgmerge
 
@@ -54,7 +56,7 @@ COMPILE = $(CC) -c $(DEFS) $(INCLUDES) $(CPPFLAGS) $(CFLAGS) $(XCFLAGS)
 SOURCES = 
 POFILES = 
 GMOFILES = 
-DISTFILES = ChangeLog Makefile.in.in POTFILES.in $(GETTEXT_PACKAGE).pot \
+DISTFILES = LINGUAS ChangeLog Makefile.in.in POTFILES.in $(GETTEXT_PACKAGE).pot \
 $(POFILES) $(GMOFILES) $(SOURCES)
 
 POTFILES = \
@@ -81,8 +83,8 @@ INSTOBJEXT = .mo
 	$(MSGFMT) -o $@ $<
 
 .po.gmo:
-	file=$(srcdir)/`echo $* | sed 's,.*/,,'`.gmo \
-	  && rm -f $$file && $(GMSGFMT) -o $$file $<
+	$(AM_V_GEN) file=$(srcdir)/`echo $* | sed 's,.*/,,'`.gmo \
+	  && rm -f $$file && $(GMSGFMT) $(MSGFMT_OPTS) -o $$file $<
 
 .po.cat:
 	sed -f ../intl/po2msg.sed < $< > $*.msg \
@@ -95,9 +97,34 @@ all-yes: $(CATALOGS)
 all-no:
 
 $(srcdir)/$(GETTEXT_PACKAGE).pot: $(POTFILES)
-	$(XGETTEXT) --default-domain=$(GETTEXT_PACKAGE) --directory=$(top_srcdir) \
+	$(XGETTEXT) --default-domain=$(GETTEXT_PACKAGE) \
+	  --msgid-bugs-address='http://bugzilla.gnome.org/enter_bug.cgi?product=glib&keywords=I18N+L10N&component=general' \
 	  --add-comments --keyword=_ --keyword=N_ \
-	  --files-from=$(srcdir)/POTFILES.in \
+	  --keyword=C_:1c,2 \
+	  --keyword=NC_:1c,2 \
+	  --keyword=g_dcgettext:2 \
+	  --keyword=g_dngettext:2,3 \
+	  --keyword=g_dpgettext2:2c,3 \
+	  --flag=N_:1:pass-c-format \
+	  --flag=C_:2:pass-c-format \
+	  --flag=NC_:2:pass-c-format \
+	  --flag=g_dngettext:2:pass-c-format \
+          --flag=g_strdup_printf:1:c-format \
+          --flag=g_string_printf:2:c-format \
+          --flag=g_string_append_printf:2:c-format \
+          --flag=g_error_new:3:c-format \
+          --flag=g_set_error:4:c-format \
+          --flag=g_markup_printf_escaped:1:c-format \
+          --flag=g_log:3:c-format \
+          --flag=g_print:1:c-format \
+          --flag=g_printerr:1:c-format \
+          --flag=g_printf:1:c-format \
+          --flag=g_fprintf:2:c-format \
+          --flag=g_sprintf:2:c-format \
+          --flag=g_snprintf:3:c-format \
+          --flag=g_scanner_error:2:c-format \
+          --flag=g_scanner_warn:2:c-format \
+	  $(POTFILES) \
 	&& test ! -f $(GETTEXT_PACKAGE).po \
 	   || ( rm -f $(srcdir)/$(GETTEXT_PACKAGE).pot \
 		&& mv $(GETTEXT_PACKAGE).po $(srcdir)/$(GETTEXT_PACKAGE).pot )
@@ -107,12 +134,8 @@ install-exec:
 install-data: install-data-yes
 install-data-no: all
 install-data-yes: all
-	if test -r "$(MKINSTALLDIRS)"; then \
-	  $(MKINSTALLDIRS) $(DESTDIR)$(datadir); \
-	else \
-	  $(SHELL) $(top_srcdir)/mkinstalldirs $(DESTDIR)$(datadir); \
-	fi
-	@catalogs='$(CATALOGS)'; \
+	$(MKINSTALLDIRS) $(DESTDIR)$(datadir); \
+	catalogs='$(CATALOGS)'; \
 	for cat in $$catalogs; do \
 	  cat=`basename $$cat`; \
 	  case "$$cat" in \
@@ -121,11 +144,7 @@ install-data-yes: all
 	  esac; \
 	  lang=`echo $$cat | sed 's/\$(CATOBJEXT)$$//'`; \
 	  dir=$(DESTDIR)$$destdir/$$lang/LC_MESSAGES; \
-	  if test -r "$(MKINSTALLDIRS)"; then \
-	    $(MKINSTALLDIRS) $$dir; \
-	  else \
-	    $(SHELL) $(top_srcdir)/mkinstalldirs $$dir; \
-	  fi; \
+	  $(MKINSTALLDIRS) $$dir; \
 	  if test -r $$cat; then \
 	    $(INSTALL_DATA) $$cat $$dir/$(GETTEXT_PACKAGE)$(INSTOBJEXT); \
 	    echo "installing $$cat as $$dir/$(GETTEXT_PACKAGE)$(INSTOBJEXT)"; \
@@ -149,11 +168,7 @@ install-data-yes: all
 	  fi; \
 	done
 	if test "$(PACKAGE)" = "glib"; then \
-	  if test -r "$(MKINSTALLDIRS)"; then \
-	    $(MKINSTALLDIRS) $(DESTDIR)$(gettextsrcdir); \
-	  else \
-	    $(SHELL) $(top_srcdir)/mkinstalldirs $(DESTDIR)$(gettextsrcdir); \
-	  fi; \
+	  $(MKINSTALLDIRS) $(DESTDIR)$(gettextsrcdir); \
 	  $(INSTALL_DATA) $(srcdir)/Makefile.in.in \
 			  $(DESTDIR)$(gettextsrcdir)/Makefile.in.in; \
 	else \
@@ -196,7 +211,7 @@ maintainer-clean: distclean
 	rm -f $(GMOFILES)
 
 distdir = ../$(GETTEXT_PACKAGE)-$(VERSION)/$(subdir)
-dist distdir: update-po $(DISTFILES)
+dist distdir: $(DISTFILES)
 	dists="$(DISTFILES)"; \
 	for file in $$dists; do \
 	  ln $(srcdir)/$$file $(distdir) 2> /dev/null \
@@ -250,8 +265,7 @@ POTFILES: POTFILES.in
 
 Makefile: Makefile.in.in ../config.status POTFILES
 	cd .. \
-	  && CONFIG_FILES=$(subdir)/$@.in CONFIG_HEADERS= \
-	       $(SHELL) ./config.status
+	  && $(SHELL) ./config.status $(subdir)/$@.in
 
 # Tell versions [3.59,3.63) of GNU make not to export all variables.
 # Otherwise a system limit (for SysV at least) may be exceeded.
